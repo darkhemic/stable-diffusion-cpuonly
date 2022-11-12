@@ -1,4 +1,5 @@
 import argparse, os, sys, glob
+sys.path.append('.')
 import cv2
 import torch
 import numpy as np
@@ -105,6 +106,7 @@ def main():
         default="a painting of a virus monster playing guitar",
         help="the prompt to render"
     )
+
     parser.add_argument(
         "--outdir",
         type=str,
