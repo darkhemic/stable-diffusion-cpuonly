@@ -57,9 +57,9 @@ Copy this github repository and extract the files.
 
 ### Download the CompVis Stable-diffusion model.
 
-Go here and download the correct mode from here. You'll have to agree to the license setup an account but this is the bread and butter AI art generating learning model.
+Go here and download the correct model from here. You'll have to agree to the license setup an account but this is the bread and butter AI art generating learning model.
 
-https://huggingface.co/CompVis/stable-diffusion-v-1-4-original
+https://huggingface.co/runwayml/stable-diffusion-v1-5
 
 copy the file to your stable-diffusion-cpuonly-main directory
 
