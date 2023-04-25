@@ -14,7 +14,7 @@ dependencies:
     - tqdm
     - yapf
     - albumentations==0.4.3
-    - diffusers
+    - diffusers==0.12.1
     - opencv-python==4.1.2.30
     - opencv-python-headless
     - pudb==2019.2
