@@ -17,8 +17,13 @@ ldm/modules/distributions/__pycache__/__init__.cpython-38.pyc
 ldm/modules/distributions/__pycache__/distributions.cpython-38.pyc
 ldm/modules/encoders/__pycache__/__init__.cpython-38.pyc
 ldm/modules/encoders/__pycache__/modules.cpython-38.pyc
+ldm/__pycache__/
+ldm/models/diffusion/__pycache__/
+ldm/modules/diffusionmodules/__pycache__/
 outputs/txt2img-samples/grid-0000.png
 outputs/txt2img-samples/samples/00000.png
+outputs/
+src/
 src/clip/
 src/taming-transformers/
 *.ckpt
