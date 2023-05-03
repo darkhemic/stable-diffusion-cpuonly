@@ -155,8 +155,8 @@ class Options:
     data = None
     data_labels = {
         "outdir": OptionInfo("", "Output dictectory; if empty, defaults to 'outputs/*'"),
-        "samples_save": OptionInfo(True, "Save indiviual samples"),
-        "samples_format": OptionInfo('png', 'File format for indiviual samples'),
+        "samples_save": OptionInfo(True, "Save individual samples"),
+        "samples_format": OptionInfo('png', 'File format for individual samples'),
         "grid_save": OptionInfo(True, "Save image grids"),
         "grid_format": OptionInfo('png', 'File format for grids'),
         "grid_extended_filename": OptionInfo(False, "Add extended info (seed, prompt) to filename when saving grid"),
@@ -788,9 +788,10 @@ class EmbeddingsWithFixes(nn.Module):
 
 
 class StableDiffusionProcessing:
-    def __init__(self, outpath=None, prompt="", seed=-1, sampler_index=0, batch_size=1, n_iter=1, steps=50, cfg_scale=7.0, width=512, height=512, prompt_matrix=False, use_GFPGAN=False, do_not_save_samples=False, do_not_save_grid=False, extra_generation_params=None):
+    def __init__(self, outpath=None, prompt="", neg_prompt="", seed=-1, sampler_index=0, batch_size=1, n_iter=1, steps=50, cfg_scale=7.0, width=512, height=512, prompt_matrix=False, use_GFPGAN=False, do_not_save_samples=False, do_not_save_grid=False, extra_generation_params=None):
         self.outpath: str = outpath
         self.prompt: str = prompt
+        self.neg_prompt: str = neg_prompt
         self.seed: int = seed
         self.sampler_index: int = sampler_index
         self.batch_size: int = batch_size
@@ -856,6 +857,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     """this is the main loop that both txt2img and img2img use; it calls func_init once inside all the scopes and func_sample once per batch"""
 
     prompt = p.prompt
+    neg_prompt = p.neg_prompt
     model = sd_model
 
     assert p.prompt is not None
@@ -906,7 +908,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     generation_params_text = ", ".join([k if k == v else f'{k}: {v}' for k, v in generation_params.items() if v is not None])
 
     def infotext():
-        return f"{prompt}\n{generation_params_text}".strip() + "".join(["\n\n" + x for x in comments])
+        return f"{prompt}\nNegative prompt: {neg_prompt}\n{generation_params_text}".strip() + "".join(["\n\n" + x for x in comments])
 
     if os.path.exists(cmd_opts.embeddings_dir):
         model_hijack.load_textual_inversion_embeddings(cmd_opts.embeddings_dir, model)
@@ -921,7 +923,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
             prompts = all_prompts[n * p.batch_size:(n + 1) * p.batch_size]
             seeds = all_seeds[n * p.batch_size:(n + 1) * p.batch_size]
 
-            uc = model.get_learned_conditioning(len(prompts) * [""])
+            uc = model.get_learned_conditioning(len(prompts) * [neg_prompt])
             c = model.get_learned_conditioning(prompts)
 
             if len(model_hijack.comments) > 0:
@@ -929,7 +931,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
             # we manually generate all input noises because each one should have a specific seed
             x = create_random_tensors([opt_C, p.height // opt_f, p.width // opt_f], seeds=seeds)
-
             samples_ddim = p.sample(x=x, conditioning=c, unconditional_conditioning=uc)
 
             x_samples_ddim = model.decode_first_stage(samples_ddim)
@@ -988,12 +989,13 @@ class StableDiffusionProcessingTxt2Img(StableDiffusionProcessing):
         samples_ddim = self.sampler.sample(self, x, conditioning, unconditional_conditioning)
         return samples_ddim
 
-def txt2img(prompt: str, steps: int, sampler_index: int, use_GFPGAN: bool, prompt_matrix: bool, n_iter: int, batch_size: int, cfg_scale: float, seed: int, height: int, width: int, code: str):
+def txt2img(prompt: str, neg_prompt: str, steps: int, sampler_index: int, use_GFPGAN: bool, prompt_matrix: bool, n_iter: int, batch_size: int, cfg_scale: float, seed: int, height: int, width: int, code: str):
     outpath = opts.outdir or "outputs/txt2img-samples"
 
     p = StableDiffusionProcessingTxt2Img(
         outpath=outpath,
         prompt=prompt,
+        neg_prompt=neg_prompt,
         seed=seed,
         sampler_index=sampler_index,
         batch_size=batch_size,
@@ -1076,6 +1078,7 @@ txt2img_interface = gr.Interface(
     wrap_gradio_call(txt2img),
     inputs=[
         gr.Textbox(label="Prompt", placeholder="A corgi wearing a top hat as an oil painting.", lines=1),
+        gr.Textbox(label="Negative Prompt", placeholder="ugly, boring, bad anatomy, blurry", lines=1),
         gr.Slider(minimum=1, maximum=150, step=1, label="Sampling Steps", value=20),
         gr.Radio(label='Sampling method', choices=[x.name for x in samplers], value=samplers[0].name, type="index"),
         gr.Checkbox(label='Fix faces using GFPGAN', value=False, visible=have_gfpgan),
@@ -1146,7 +1149,7 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         return samples_ddim
 
 
-def img2img(prompt: str, init_img, ddim_steps: int, sampler_index: int, use_GFPGAN: bool, prompt_matrix, loopback: bool, sd_upscale: bool, n_iter: int, batch_size: int, cfg_scale: float, denoising_strength: float, seed: int, height: int, width: int, resize_mode: int):
+def img2img(prompt: str, neg_prompt: str, init_img, ddim_steps: int, sampler_index: int, use_GFPGAN: bool, prompt_matrix, loopback: bool, sd_upscale: bool, n_iter: int, batch_size: int, cfg_scale: float, denoising_strength: float, seed: int, height: int, width: int, resize_mode: int):
     outpath = opts.outdir or "outputs/img2img-samples"
 
     assert 0. <= denoising_strength <= 1., 'can only work with strength in [0.0, 1.0]'
@@ -1154,6 +1157,7 @@ def img2img(prompt: str, init_img, ddim_steps: int, sampler_index: int, use_GFPG
     p = StableDiffusionProcessingImg2Img(
         outpath=outpath,
         prompt=prompt,
+        neg_prompt=neg_prompt,
         seed=seed,
         sampler_index=sampler_index,
         batch_size=batch_size,
@@ -1261,7 +1265,8 @@ sample_img2img = sample_img2img if os.path.exists(sample_img2img) else None
 img2img_interface = gr.Interface(
     wrap_gradio_call(img2img),
     inputs=[
-        gr.Textbox(placeholder="A fantasy landscape, trending on artstation.", lines=1),
+        gr.Textbox(label="Prompt", placeholder="A fantasy landscape, trending on artstation.", lines=1),
+        gr.Textbox(label="Negative Prompt", placeholder="ugly, boring, bad anatomy, blurry", lines=1),
         gr.Image(value=sample_img2img, source="upload", interactive=True, type="pil"),
         gr.Slider(minimum=1, maximum=150, step=1, label="Sampling Steps", value=20),
         gr.Radio(label='Sampling method', choices=[x.name for x in samplers_for_img2img], value=samplers_for_img2img[0].name, type="index"),
