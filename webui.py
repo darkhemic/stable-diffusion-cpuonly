@@ -908,7 +908,7 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
     generation_params_text = ", ".join([k if k == v else f'{k}: {v}' for k, v in generation_params.items() if v is not None])
 
     def infotext():
-        return f"{prompt}\n{generation_params_text}".strip() + "".join(["\n\n" + x for x in comments])
+        return f"{prompt}\nNegative prompt: {neg_prompt}\n{generation_params_text}".strip() + "".join(["\n\n" + x for x in comments])
 
     if os.path.exists(cmd_opts.embeddings_dir):
         model_hijack.load_textual_inversion_embeddings(cmd_opts.embeddings_dir, model)
@@ -931,7 +931,6 @@ def process_images(p: StableDiffusionProcessing) -> Processed:
 
             # we manually generate all input noises because each one should have a specific seed
             x = create_random_tensors([opt_C, p.height // opt_f, p.width // opt_f], seeds=seeds)
-            print("negative prompt = " + neg_prompt + "\n")
             samples_ddim = p.sample(x=x, conditioning=c, unconditional_conditioning=uc)
 
             x_samples_ddim = model.decode_first_stage(samples_ddim)
